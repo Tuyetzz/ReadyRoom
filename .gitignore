@@ -1,0 +1,59 @@
+# ---- Secrets ----
+.env
+*.env
+!.env.example
+
+# ---- Flutter / Dart ----
+app/.dart_tool/
+app/.packages
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/.pub-cache/
+app/.pub/
+app/ios/Pods/
+app/ios/.symlinks/
+app/ios/Flutter/Flutter.framework
+app/ios/Flutter/Flutter.podspec
+app/ios/Flutter/Generated.xcconfig
+app/ios/Flutter/flutter_export_environment.sh
+app/android/.gradle/
+app/android/local.properties
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+app/android/.idea/
+*.iml
+
+# ---- Python (AI pipeline) ----
+ai/.venv/
+ai/venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+*.egg-info/
+
+# ---- Datasets & trained weights (large / licensed, never commit) ----
+ai/data/raw/
+ai/data/processed/
+ai/data/*.zip
+ai/datasets/
+ai/runs/
+*.pt
+*.onnx
+*.tflite
+*.mlpackage
+*.mlmodel
+app/assets/models/*
+!app/assets/models/.gitkeep
+
+# ---- Backend ----
+backend/.branches/
+backend/.temp/
+backend/.env
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
