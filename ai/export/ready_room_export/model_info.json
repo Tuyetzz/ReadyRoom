@@ -1,0 +1,41 @@
+{
+  "input": [
+    1,
+    640,
+    640,
+    3
+  ],
+  "input_format": "RGB float 0-1, letterbox pad 114",
+  "output_row": "[x1, y1, x2, y2, conf, class_id]",
+  "conf_threshold": 0.3,
+  "classes": [
+    "shelf",
+    "wardrobe",
+    "dresser",
+    "refrigerator",
+    "tv",
+    "ceiling_fan",
+    "wall_art",
+    "window",
+    "mirror",
+    "table",
+    "bed",
+    "sofa",
+    "door"
+  ],
+  "groups": {
+    "shelf": "Topple",
+    "wardrobe": "Topple",
+    "dresser": "Topple",
+    "refrigerator": "Topple",
+    "tv": "Topple",
+    "ceiling_fan": "Fall",
+    "wall_art": "Fall",
+    "window": "Glass",
+    "mirror": "Glass",
+    "table": "Cover",
+    "bed": "Zone",
+    "sofa": "Zone",
+    "door": "Exit"
+  }
+}

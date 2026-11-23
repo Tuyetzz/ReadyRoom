@@ -1,0 +1,18 @@
+class         group        P     R  mAP50  50-95  verdict
+shelf         Topple    0.40  0.11   0.16   0.11  WEAK
+wardrobe      Topple    0.52  0.39   0.41   0.29  WEAK
+dresser       Topple    0.71  0.52   0.63   0.51  OK
+refrigerator  Topple    0.93  0.75   0.88   0.65  OK
+tv            Topple    0.78  0.77   0.84   0.63  OK
+ceiling_fan   Fall      0.88  0.84   0.87   0.61  OK
+wall_art      Fall      0.73  0.56   0.65   0.48  OK
+window        Glass     0.51  0.40   0.41   0.25  WEAK
+mirror        Glass     0.84  0.68   0.76   0.63  OK
+table         Cover     0.62  0.52   0.56   0.38  OK
+bed           Zone      0.76  0.66   0.74   0.50  OK
+sofa          Zone      0.76  0.72   0.76   0.54  OK
+door          Exit      0.59  0.48   0.52   0.32  OK
+
+mAP50  val 0.640 | test 0.629
+mAP50-95 val 0.463 | test 0.452
+F1-best conf (val) = 0.3
