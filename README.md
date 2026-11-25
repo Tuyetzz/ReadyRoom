@@ -83,15 +83,20 @@ Scan a room with your phone. Ready Room detects furniture and fixtures, measures
 
 | Layer | Technology |
 |---|---|
-| App | **Flutter** (Dart): one codebase for Android and iOS |
-| AR / depth (Android) | **ARCore Depth API** via a native Kotlin module (platform channel) |
-| AR / depth (iOS) | **ARKit** (plane detection, LiDAR `sceneDepth` on supported devices) via a native Swift module |
-| Object detection | **Ultralytics YOLO** (nano), exported to **TFLite** (Android) and **Core ML** (iOS) |
+| App | **Native Android** — Kotlin + Jetpack Compose |
+| AR / depth | **ARCore Depth API** (`com.google.ar:core`), plane detection |
+| Camera | **CameraX** (`ImageAnalysis` → ARCore `Session.update`) |
+| Object detection | **Ultralytics YOLO** (nano), exported to **TFLite**, on-device |
 | Decision layer | **Jev** (TypeSafe AI) for probabilistic yes/no judgments, behind an adapter |
 | Chat assistant | Vision LLM API (Claude / GPT / Gemini), behind an adapter |
 | Backend | **Supabase** (auth, scan history, saved rooms) |
 | Annotation | Roboflow (private, data-licensing toggle off) or self-hosted CVAT |
 | Training | Python, Ultralytics, FiftyOne |
+
+> iOS is not targeted. The original plan used Flutter for a shared codebase, but
+> every core feature (ARCore depth, CameraX, TFLite) is native, so Flutter would
+> have owned only the UI while adding a platform channel between the camera
+> frames and the AR session. The app is Android-only for now.
 
 ---
 
@@ -141,26 +146,39 @@ Explains results in plain language. See [Chat Assistant](#chat-assistant).
 
 ## Detection Classes
 
-### MVP (16 classes)
+### MVP (13 classes)
+
+These are the classes the shipped model (`app/app/src/main/assets/ready_room.tflite`)
+was actually trained on. Class indices are the order in `labels.txt`:
 
 | # | Class | Group |
 |---|---|---|
-| 0 | `bookshelf` | Topple / fall |
+| 0 | `shelf` | Topple / fall |
 | 1 | `wardrobe` | Topple / fall |
 | 2 | `dresser` | Topple / fall |
 | 3 | `refrigerator` | Topple / fall |
 | 4 | `tv` | Topple / fall |
 | 5 | `ceiling_fan` | Topple / fall |
-| 6 | `ceiling_light` | Topple / fall |
-| 7 | `wall_art` | Topple / fall |
-| 8 | `wall_shelf` | Topple / fall |
-| 9 | `window` | Glass / shatter |
-| 10 | `mirror` | Glass / shatter |
-| 11 | `glass_door` | Glass / shatter |
-| 12 | `table` | Cover candidate |
-| 13 | `bed` | Context zone |
-| 14 | `sofa` | Context zone |
-| 15 | `door` | Context zone (exit) |
+| 6 | `wall_art` | Topple / fall |
+| 7 | `window` | Glass / shatter |
+| 8 | `mirror` | Glass / shatter |
+| 9 | `table` | Cover candidate |
+| 10 | `bed` | Context zone |
+| 11 | `sofa` | Context zone |
+| 12 | `door` | Context zone (exit) |
+
+An earlier draft listed 16 classes. Four of them were dropped or merged because
+they could not be reliably separated during annotation:
+
+| Dropped class | Reason |
+|---|---|
+| `bookshelf`, `wall_shelf` | Merged into `shelf` — annotators could not agree on the split |
+| `ceiling_light` | Merged into `ceiling_fan` — near-identical overhead-fixture cues |
+| `glass_door` | Merged into `window` — same glass-shatter hazard, same fix |
+
+The risk engine keys its class weights off these 13 names. Adding a class back
+requires retraining and bumping `labels.txt`; a name the model never emits would
+silently fall through to a default weight.
 
 ### Planned
 
@@ -261,34 +279,35 @@ Rules live in `ai/rules/` and each rule links to its official source.
 
 ```
 ready-room/
-├── app/                        # Flutter app
-│   ├── lib/
-│   │   ├── features/
-│   │   │   ├── scan/           # AR scan flow
-│   │   │   ├── results/        # Risk tiers, cover zone, checklist
-│   │   │   ├── chat/           # Chat assistant UI
-│   │   │   └── history/        # Saved rooms, rescans
-│   │   ├── services/
-│   │   │   ├── ar/             # Platform channel to native AR
-│   │   │   ├── detector/       # TFLite / Core ML inference
-│   │   │   ├── geometry/       # 3D measurement math
-│   │   │   ├── risk/           # Risk engine + hard rules
-│   │   │   ├── jev/            # Jev adapter
-│   │   │   └── llm/            # Chat LLM adapter
-│   │   └── main.dart
-│   ├── android/                # Kotlin ARCore module
-│   └── ios/                    # Swift ARKit module
-├── ai/
-│   ├── data/                   # Dataset download + merge scripts
-│   ├── training/               # YOLO training configs and notebooks
-│   ├── export/                 # TFLite / Core ML export scripts
-│   ├── rules/                  # Hard safety rules (JSON + sources)
-│   ├── guidance/               # Official guidance snippets for chat retrieval
-│   └── eval/                   # Test-set evaluation, risk engine tests
-├── backend/                    # Supabase migrations and functions
-├── docs/                       # Architecture notes, annotation guide
+├── app/                            # Android Studio project
+│   ├── app/
+│   │   ├── src/main/
+│   │   │   ├── assets/             # Bundled runtime models
+│   │   │   │   ├── ready_room.tflite
+│   │   │   │   ├── labels.txt
+│   │   │   │   └── model_info.json
+│   │   │   ├── java/com/readyroom/app/
+│   │   │   │   ├── MainActivity.kt
+│   │   │   │   ├── domain/         # Models, repositories, use cases
+│   │   │   │   └── ui/             # Compose screens + theme
+│   │   │   └── AndroidManifest.xml
+│   │   └── build.gradle.kts
+│   └── gradle/libs.versions.toml   # Version catalog
+├── ai/                             # Python training pipeline (not shipped)
+│   ├── data/                       # Dataset download + merge scripts
+│   ├── training/                   # YOLO training configs and notebooks
+│   ├── export/                     # TFLite export scripts + artifacts
+│   ├── rules/                      # Hard safety rules (JSON + sources)
+│   ├── guidance/                   # Official guidance snippets for chat retrieval
+│   └── eval/                       # Test-set evaluation, risk engine tests
+├── backend/                        # Supabase migrations and functions
+├── docs/                           # Architecture notes, annotation guide
 └── README.md
 ```
+
+**`ai/` is build-time only.** Its Python tooling never runs on the phone. The
+handoff is one-directional: `ai/export/ready_room_android/` produces the model,
+which is copied into `app/app/src/main/assets/`, which the APK bundles.
 
 ---
 
@@ -296,35 +315,58 @@ ready-room/
 
 ### Prerequisites
 
-- Flutter SDK (stable channel)
-- Android Studio with an **ARCore-supported device** (Depth API enabled)
-- Xcode with an **ARKit-capable iPhone** (LiDAR models recommended for best depth)
-- Python 3.10+ (for training)
+- Android Studio (latest stable)
+- An **ARCore-supported Android device** with USB debugging enabled
+- Python 3.10+ (for training only)
 - Supabase project (optional for local development)
+
+> AR features do not work on emulators. Use a physical device — the emulator has
+> no camera feed and no ARCore session.
 
 ### Run the app
 
 ```bash
 git clone https://github.com/<your-username>/ready-room.git
-cd ready-room/app
-flutter pub get
-cp .env.example .env            # add API keys
-flutter run
 ```
 
-### Environment variables
+Open the `app/` folder in Android Studio (**File → Open**, and pick `app/` — the
+folder containing `settings.gradle.kts`, *not* the repository root) and press Run.
 
-```env
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
+From the command line instead:
+
+```bash
+cd ready-room/app
+./gradlew :app:installDebug        # build + install on the connected device
+adb shell am start -n com.readyroom.app/.MainActivity
+```
+
+### API keys
+
+Keys live in `local.properties`, which is already gitignored:
+
+```properties
 JEV_API_KEY=
 LLM_API_KEY=
 LLM_PROVIDER=claude             # claude | openai | gemini
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
 ```
 
-> Never commit `.env`. It is listed in `.gitignore`.
+Expose them to the app through `buildConfigField` in `app/app/build.gradle.kts`
+so they never appear in source control.
 
-> AR features do not work on emulators. Use a physical device.
+### Model assets
+
+The trained model is committed under `app/app/src/main/assets/`. If you retrain,
+copy the new export over the old one:
+
+```bash
+cp ai/export/ready_room_android/ready_room.tflite app/app/src/main/assets/
+cp ai/export/ready_room_android/labels.txt        app/app/src/main/assets/
+```
+
+`labels.txt` order **must** match the training run — class index 0 is the first
+line. A mismatch silently mislabels every detection.
 
 ---
 
@@ -355,7 +397,7 @@ Copy the exported models to `app/assets/models/`.
 ### Targets
 
 - mAP50 of at least 0.6 on the main hazard classes.
-- Weak classes (likely `mirror`, `ceiling_fan`, `wall_shelf`) get targeted extra data collection.
+- Weak classes (likely `mirror`, `ceiling_fan`, `shelf`) get targeted extra data collection.
 
 ---
 

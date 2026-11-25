@@ -47,6 +47,12 @@ ai/runs/
 app/assets/models/*
 !app/assets/models/.gitkeep
 
+# Models bundled into the Android app must ship in the APK, so they are
+# tracked despite the blanket *.tflite rule above. Negation wins because
+# this pattern is more specific.
+!app/app/src/main/assets/*.tflite
+!app/app/src/main/assets/*.txt
+
 # ---- Backend ----
 backend/.branches/
 backend/.temp/

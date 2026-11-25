@@ -1,0 +1,13 @@
+shelf
+wardrobe
+dresser
+refrigerator
+tv
+ceiling_fan
+wall_art
+window
+mirror
+table
+bed
+sofa
+door
