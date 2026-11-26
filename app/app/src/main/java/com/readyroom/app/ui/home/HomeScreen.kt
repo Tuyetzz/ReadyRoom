@@ -6,10 +6,12 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,6 +70,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -83,6 +88,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
+    onStartScan: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(),
 ) {
@@ -96,19 +102,12 @@ fun HomeScreen(
     // "never asked" from "denied for good" — both return false.
     var askedForCamera by rememberSaveable { mutableStateOf(false) }
 
-    /** Runs once the camera permission is known to be granted. */
-    fun onCameraReady() {
-        scope.launch {
-            snackbarHostState.showSnackbar("Camera capture is not wired up yet.")
-        }
-    }
-
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         askedForCamera = true
         if (granted) {
-            onCameraReady()
+            onStartScan()
         } else {
             val blocked = activity?.shouldShowRequestPermissionRationale(
                 Manifest.permission.CAMERA,
@@ -133,8 +132,7 @@ fun HomeScreen(
         onSend = viewModel::sendMessage,
         onScanClick = {
             when {
-                context.hasCameraPermission() -> onCameraReady()
-
+                context.hasCameraPermission() -> onStartScan()
                 // Nothing asked yet this session. The system dialog still
                 // works after a first denial, so always try it.
                 !askedForCamera -> permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -230,6 +228,7 @@ private fun HomeContent(
                 mode = state.mode,
                 messages = state.messages,
                 draft = state.draft,
+                photo = state.session.photo,
                 onDraftChanged = onDraftChanged,
                 onSend = onSend,
                 modifier = Modifier.weight(1f),
@@ -355,14 +354,16 @@ private fun AdviceChat(
     mode: DisasterMode,
     messages: List<ChatMessage>,
     draft: String,
+    photo: Bitmap?,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
 
-    // Keep the newest message visible as the transcript grows.
-    LaunchedEffect(messages.size) {
+    // Keyed on mode as well as size: every mode starts with one message, so
+    // keying on size alone would not scroll when switching between them.
+    LaunchedEffect(mode, messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
         }
@@ -385,6 +386,11 @@ private fun AdviceChat(
                 )
                 Spacer(Modifier.width(8.dp))
                 SectionLabel("${mode.label} advice")
+            }
+
+            if (photo != null) {
+                Spacer(Modifier.height(10.dp))
+                ScannedPhoto(bitmap = photo, accent = mode.accent)
             }
 
             Spacer(Modifier.height(10.dp))
@@ -482,6 +488,52 @@ private fun SectionLabel(text: String) {
     )
 }
 
+/**
+ * The photo the current conversation is about.
+ *
+ * Shown above the transcript so it stays visible while scrolling the advice
+ * underneath it — the assistant's replies refer to this image, and scrolling
+ * it away would leave the references unexplained.
+ */
+@Composable
+private fun ScannedPhoto(
+    bitmap: Bitmap,
+    accent: androidx.compose.ui.graphics.Color,
+) {
+    val image = remember(bitmap) { bitmap.asImageBitmap() }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Box {
+            Image(
+                bitmap = image,
+                contentDescription = "Scanned room",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
+                contentScale = ContentScale.Crop,
+            )
+
+            Surface(
+                color = accent.copy(alpha = 0.9f),
+                shape = RoundedCornerShape(topStart = 12.dp, bottomEnd = 12.dp),
+                modifier = Modifier.align(Alignment.TopStart),
+            ) {
+                Text(
+                    text = "Last scan",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+        }
+    }
+}
+
 /** Icons per mode. Extended icons are used, so the dependency must stay. */
 private fun DisasterMode.icon() = when (this) {
     DisasterMode.EARTHQUAKE -> Icons.Filled.WarningAmber
@@ -497,16 +549,20 @@ private fun HomePreview() {
         HomeContent(
             state = HomeUiState(
                 mode = DisasterMode.FLOOD,
-                messages = listOf(
-                    ChatMessage(
-                        "Go higher, never lower. Do not shelter under furniture.",
-                        fromUser = false,
-                    ),
-                    ChatMessage("What about the table in the middle?", fromUser = true),
-                    ChatMessage(
-                        "In a flood, a table is not shelter — water rises and can " +
-                            "float or trap you. Move to higher ground instead.",
-                        fromUser = false,
+                sessions = mapOf(
+                    DisasterMode.FLOOD to ChatSession(
+                        messages = listOf(
+                            ChatMessage(
+                                "Go higher, never lower. Do not shelter under furniture.",
+                                fromUser = false,
+                            ),
+                            ChatMessage("What about the table in the middle?", fromUser = true),
+                            ChatMessage(
+                                "In a flood, a table is not shelter — water rises and can " +
+                                    "float or trap you. Move to higher ground instead.",
+                                fromUser = false,
+                            ),
+                        ),
                     ),
                 ),
             ),

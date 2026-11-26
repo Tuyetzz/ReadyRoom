@@ -13,6 +13,7 @@ arCore = "1.57.0"
 cameraX = "1.7.0"
 kotlinxSerialization = "1.7.3"
 okhttp = "4.12.0"
+robolectric = "4.18.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -47,6 +48,9 @@ camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "
 # Networking for Jev / LLM adapters
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# Provides the Android framework (Bitmap, Canvas) to JVM unit tests
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

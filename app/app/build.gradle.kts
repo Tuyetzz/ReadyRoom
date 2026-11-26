@@ -35,6 +35,13 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric needs the merged resources to resolve the app theme.
+            isIncludeAndroidResources = true
+        }
+    }
+
     // Keep the TFLite model uncompressed in the APK. A compressed model must be
     // copied to disk before it can be memory-mapped, which adds startup latency
     // and needs scratch storage the app does not otherwise require.
@@ -72,6 +79,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
+    // Supplies the real Android framework (Bitmap, Canvas) to JVM tests, so
+    // code that touches those types is testable without a device.
+    testImplementation(libs.robolectric)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
